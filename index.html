@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Discapacidad">
+<meta name="theme-color" content="#1a3a6b">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Sección Discapacidad</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+body{font-family:Arial,sans-serif;background:#f0f4f8;color:#1a1a2e;min-height:100vh;}
+header{background:#1a3a6b;color:white;padding:16px 20px;position:sticky;top:0;z-index:100;}
+header h1{font-size:17px;font-weight:700;}
+header p{font-size:12px;opacity:0.75;margin-top:2px;}
+.body{padding:14px;}
+.card{background:white;border-radius:14px;padding:16px;box-shadow:0 2px 10px rgba(0,0,0,0.07);margin-bottom:14px;}
+label{font-size:13px;color:#555;font-weight:600;display:block;margin-bottom:6px;}
+input{width:100%;padding:13px 14px;border:1.5px solid #ddd;border-radius:10px;font-size:16px;color:#222;background:#fafafa;margin-bottom:12px;-webkit-appearance:none;}
+input:focus{outline:none;border-color:#1a3a6b;background:white;}
+.btn-search{width:100%;padding:15px;background:#1a3a6b;color:white;border:none;border-radius:10px;font-size:16px;font-weight:700;cursor:pointer;margin-bottom:8px;}
+.btn-search:active{background:#254d8f;}
+.btn-clear{width:100%;padding:12px;background:#e8edf5;color:#555;border:none;border-radius:10px;font-size:15px;cursor:pointer;}
+.btn-clear:active{background:#d0d9e8;}
+.stats{font-size:12px;color:#888;text-align:center;margin-top:10px;}
+.res-header{font-size:13px;font-weight:700;color:#1a3a6b;padding:12px 16px;background:#e8edf5;border-radius:10px;margin-bottom:10px;}
+.result-card{background:white;border-radius:12px;padding:14px 16px;box-shadow:0 1px 6px rgba(0,0,0,0.07);margin-bottom:10px;border-left:4px solid #1a3a6b;}
+.result-card.border-green{border-left:4px solid #16a34a;background:#f0fdf4;}
+.result-card.border-yellow{border-left:4px solid #ca8a04;background:#fefce8;}
+.result-card.border-red{border-left:4px solid #dc2626;background:#fef2f2;}
+.result-card .name{font-size:16px;font-weight:700;color:#1a1a2e;margin-bottom:4px;}
+.result-card .dni-label{font-size:13px;color:#555;margin-bottom:8px;}
+.result-card .row{display:flex;justify-content:space-between;font-size:13px;color:#444;padding:4px 0;border-bottom:1px solid #f0f0f0;}
+.result-card .row:last-child{border-bottom:none;}
+.result-card .row span:first-child{color:#888;min-width:110px;}
+.tramite-count{display:inline-block;padding:2px 10px;border-radius:20px;font-size:12px;font-weight:700;margin-left:8px;}
+.count-green{background:#dcfce7;color:#15803d;}
+.count-yellow{background:#fef9c3;color:#a16207;}
+.count-red{background:#fee2e2;color:#b91c1c;}
+.badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;}
+.badge-inicio{background:#dbeafe;color:#1e40af;}
+.badge-coblea{background:#fef3c7;color:#92400e;}
+.badge-cdenuncia{background:#fee2e2;color:#991b1b;}
+.badge-other{background:#e5e7eb;color:#374151;}
+.empty{text-align:center;padding:40px 20px;color:#aaa;}
+.empty .icon{font-size:48px;margin-bottom:12px;}
+.empty p{font-size:15px;}
+.loading{text-align:center;padding:40px 20px;color:#888;}
+.loading p{font-size:14px;margin-top:12px;}
+</style>
+</head>
+<body>
+<header>
+  <h1>Secci&#243;n Discapacidad</h1>
+  <p>Base de datos de tr&#225;mites de pases de discapacidad</p>
+</header>
+<div class="body">
+  <div class="card">
+    <label for="searchDni">DNI</label>
+    <input type="text"
+           inputmode="numeric"
+           pattern="[0-9]*"
+           id="searchDni"
+           placeholder="Ej: 25498139"
+           autocomplete="off"
+           autocorrect="off"
+           spellcheck="false">
+    <label for="searchNombre">Apellido y/o Nombre</label>
+    <input type="text"
+           id="searchNombre"
+           placeholder="Ej: HERRERA"
+           autocomplete="off"
+           autocorrect="off"
+           autocapitalize="characters"
+           spellcheck="false">
+    <button class="btn-search" id="btnBuscar" onclick="search()">BUSCAR</button>
+    <button class="btn-clear" onclick="clearAll()">Limpiar</button>
+    <div class="stats" id="stats">Cargando base de datos...</div>
+  </div>
+  <div id="resultsSection">
+    <div class="loading">
+      <div class="icon">⏳</div>
+      <p>Cargando datos...</p>
+    </div>
+  </div>
+</div>
+
+<script src="data.js"></script>
+<script>
+// Confirmar que los datos cargaron
+window.addEventListener('load', function() {
+  if (typeof DATA !== 'undefined' && DATA.length) {
+    var total = DATA.length.toLocaleString('es-AR');
+    document.getElementById('stats').textContent = 'Total de registros: ' + total;
+    document.getElementById('resultsSection').innerHTML =
+      '<div class="empty"><div class="icon">🔍</div><p>Ingres&#225; DNI o nombre para buscar</p></div>';
+  } else {
+    document.getElementById('stats').textContent = 'Error al cargar datos';
+    document.getElementById('resultsSection').innerHTML =
+      '<div class="empty"><div class="icon">⚠️</div><p>No se pudo cargar la base de datos</p></div>';
+  }
+});
+
+// Buscar al presionar Enter
+document.getElementById('searchDni').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') search();
+});
+document.getElementById('searchNombre').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') search();
+});
+
+function getBadgeClass(tipo) {
+  var t = (tipo || '').toUpperCase();
+  if (t.indexOf('INICIO') !== -1) return 'badge-inicio';
+  if (t.indexOf('OBLEA') !== -1) return 'badge-coblea';
+  if (t.indexOf('DENUNCIA') !== -1) return 'badge-cdenuncia';
+  return 'badge-other';
+}
+
+function getBorderClass(tipo) {
+  var t = (tipo || '').toUpperCase();
+  if (t.indexOf('INICIO') !== -1) return 'border-green';
+  if (t.indexOf('OBLEA') !== -1) return 'border-yellow';
+  if (t.indexOf('DENUNCIA') !== -1) return 'border-red';
+  return '';
+}
+
+function clearAll() {
+  document.getElementById('searchDni').value = '';
+  document.getElementById('searchNombre').value = '';
+  document.getElementById('resultsSection').innerHTML =
+    '<div class="empty"><div class="icon">🔍</div><p>Ingres&#225; DNI o nombre para buscar</p></div>';
+}
+
+function search() {
+  if (typeof DATA === 'undefined' || !DATA.length) {
+    alert('La base de datos aún se está cargando. Esperá un momento.');
+    return;
+  }
+
+  var dni    = (document.getElementById('searchDni').value || '').replace(/\D/g, '');
+  var nombre = (document.getElementById('searchNombre').value || '').trim().toUpperCase().replace(/\s+/g, ' ');
+
+  if (!dni && !nombre) {
+    document.getElementById('resultsSection').innerHTML =
+      '<div class="empty"><div class="icon">🔍</div><p>Ingres&#225; DNI o nombre para buscar</p></div>';
+    return;
+  }
+
+  var results = [];
+  for (var i = 0; i < DATA.length; i++) {
+    var r = DATA[i];
+    var rdni    = (r[0] || '').replace(/\D/g, '');
+    var rnombre = (r[1] || '').toUpperCase();
+    if (dni && nombre) {
+      if (rdni.indexOf(dni) !== -1 && rnombre.indexOf(nombre) !== -1) results.push(r);
+    } else if (dni) {
+      if (rdni.indexOf(dni) !== -1) results.push(r);
+    } else {
+      if (rnombre.indexOf(nombre) !== -1) results.push(r);
+    }
+  }
+
+  if (results.length === 0) {
+    document.getElementById('resultsSection').innerHTML =
+      '<div class="empty"><div class="icon">😕</div><p>No se encontraron resultados</p></div>';
+    return;
+  }
+
+  var countClass = results.length === 1 ? 'count-green' : results.length <= 5 ? 'count-yellow' : 'count-red';
+  var html = '<div class="res-header">Resultados encontrados <span class="tramite-count ' + countClass + '">' + results.length + '</span></div>';
+
+  for (var j = 0; j < results.length; j++) {
+    var r = results[j];
+    var border = getBorderClass(r[4]);
+    var badge  = getBadgeClass(r[4]);
+    html += '<div class="result-card ' + border + '">'
+      + '<div class="name">'      + (r[1] || '') + '</div>'
+      + '<div class="dni-label">DNI: ' + (r[0] || '') + '</div>'
+      + '<div class="row"><span>Fecha tr&#225;mite</span><span>' + (r[2] || '-') + '</span></div>'
+      + '<div class="row"><span>Vencimiento CUD</span><span>'   + (r[3] || '-') + '</span></div>'
+      + '<div class="row"><span>Tipo</span><span><span class="badge ' + badge + '">' + (r[4] || '-') + '</span></span></div>'
+      + (r[5] ? '<div class="row"><span>Instituci&#243;n</span><span>' + r[5] + '</span></div>' : '')
+      + '</div>';
+  }
+
+  document.getElementById('resultsSection').innerHTML = html;
+}
+
+// Registrar Service Worker para uso offline
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function() {
+    navigator.serviceWorker.register('./sw.js')
+      .then(function(reg) { console.log('SW registrado'); })
+      .catch(function(err) { console.log('SW error:', err); });
+  });
+}
+</script>
+</body>
+</html>
