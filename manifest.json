@@ -1,6 +1,6 @@
 {
   "name": "Sección Discapacidad",
-  "short_name": "Discapacidad",
+  "short_name": "S. Discapacidad",
   "description": "Base de datos de trámites de pases de discapacidad",
   "start_url": "./index.html",
   "display": "standalone",
