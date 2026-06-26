@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Test PIN</title>
+</head>
+<body style="background:#0f2352;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;margin:0;font-family:Arial,sans-serif;">
+
+<div style="color:white;font-size:20px;margin-bottom:24px;">Test PIN Admin</div>
+
+<div style="display:flex;gap:16px;margin-bottom:24px;" id="dots">
+  <div id="d0" style="width:18px;height:18px;border-radius:50%;border:2px solid white;background:transparent;"></div>
+  <div id="d1" style="width:18px;height:18px;border-radius:50%;border:2px solid white;background:transparent;"></div>
+  <div id="d2" style="width:18px;height:18px;border-radius:50%;border:2px solid white;background:transparent;"></div>
+  <div id="d3" style="width:18px;height:18px;border-radius:50%;border:2px solid white;background:transparent;"></div>
+</div>
+
+<div id="msg" style="color:#ff6b6b;font-size:14px;min-height:20px;margin-bottom:20px;text-align:center;"></div>
+
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;width:280px;">
+  <button onclick="p('1')" style="padding:22px;font-size:24px;font-weight:700;background:rgba(255,255,255,0.15);border:none;border-radius:12px;color:white;cursor:pointer;">1</button>
+  <button onclick="p('2')" style="padding:22px;font-size:24px;font-weight:700;background:rgba(255,255,255,0.15);border:none;border-radius:12px;color:white;cursor:pointer;">2</button>
+  <button onclick="p('3')" style="padding:22px;font-size:24px;font-weight:700;background:rgba(255,255,255,0.15);border:none;border-radius:12px;color:white;cursor:pointer;">3</button>
+  <button onclick="p('4')" style="padding:22px;font-size:24px;font-weight:700;background:rgba(255,255,255,0.15);border:none;border-radius:12px;color:white;cursor:pointer;">4</button>
+  <button onclick="p('5')" style="padding:22px;font-size:24px;font-weight:700;background:rgba(255,255,255,0.15);border:none;border-radius:12px;color:white;cursor:pointer;">5</button>
+  <button onclick="p('6')" style="padding:22px;font-size:24px;font-weight:700;background:rgba(255,255,255,0.15);border:none;border-radius:12px;color:white;cursor:pointer;">6</button>
+  <button onclick="p('7')" style="padding:22px;font-size:24px;font-weight:700;background:rgba(255,255,255,0.15);border:none;border-radius:12px;color:white;cursor:pointer;">7</button>
+  <button onclick="p('8')" style="padding:22px;font-size:24px;font-weight:700;background:rgba(255,255,255,0.15);border:none;border-radius:12px;color:white;cursor:pointer;">8</button>
+  <button onclick="p('9')" style="padding:22px;font-size:24px;font-weight:700;background:rgba(255,255,255,0.15);border:none;border-radius:12px;color:white;cursor:pointer;">9</button>
+  <button onclick="borrar()" style="padding:22px;font-size:14px;background:rgba(255,255,255,0.05);border:none;border-radius:12px;color:rgba(255,255,255,0.6);cursor:pointer;">Borrar</button>
+  <button onclick="p('0')" style="padding:22px;font-size:24px;font-weight:700;background:rgba(255,255,255,0.15);border:none;border-radius:12px;color:white;cursor:pointer;">0</button>
+  <button onclick="borrar()" style="padding:22px;font-size:20px;background:rgba(255,255,255,0.05);border:none;border-radius:12px;color:rgba(255,255,255,0.6);cursor:pointer;">&#9003;</button>
+</div>
+
+<script>
+var pin = '';
+var ADMIN_HASH = '67deb854909b0e04a9c7bd0bdbb2cb04cc6c7aeeeda9eaba366cd1daf3c0ac73';
+
+function msg(t, c) {
+  document.getElementById('msg').textContent = t;
+  document.getElementById('msg').style.color = c || '#ff6b6b';
+}
+
+function dots() {
+  for (var i = 0; i < 4; i++) {
+    document.getElementById('d' + i).style.background = i < pin.length ? 'white' : 'transparent';
+  }
+}
+
+function borrar() {
+  pin = pin.slice(0, -1);
+  dots();
+}
+
+async function sha256(s) {
+  var buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
+  return Array.from(new Uint8Array(buf)).map(function(b) { return b.toString(16).padStart(2, '0'); }).join('');
+}
+
+async function p(d) {
+  if (pin.length >= 4) return;
+  pin += d;
+  dots();
+  if (pin.length === 4) {
+    try {
+      msg('Verificando...', 'rgba(255,255,255,0.7)');
+      var h = await sha256(pin);
+      msg('Hash: ' + h.substring(0, 16) + '...', 'rgba(255,255,255,0.5)');
+      if (h === ADMIN_HASH) {
+        msg('✓ PIN CORRECTO - Admin', '#44ff44');
+      } else {
+        msg('PIN incorrecto', '#ff6b6b');
+        setTimeout(function() { pin = ''; dots(); msg(''); }, 1500);
+      }
+    } catch(e) {
+      msg('Error: ' + e.message, '#ff6b6b');
+      pin = '';
+      dots();
+    }
+  }
+}
+</script>
+</body>
+</html>
