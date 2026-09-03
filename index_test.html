@@ -1186,6 +1186,8 @@ async function getServerTime(){
   return new Date();
 }
 async function checkSchedule(){
+  // Micaela no tiene restricción horaria.
+  if(currentUser === 'micaela') return {ok:true};
   var st=await getServerTime();
   var ar=new Date(st.getTime()-(3*60*60*1000));
   var day=ar.getUTCDay(),h=ar.getUTCHours(),m=ar.getUTCMinutes(),t=h*100+m;
@@ -1200,7 +1202,7 @@ function startScheduleWatcher(){
   if(_schedTimer) clearInterval(_schedTimer);
   _schedTimer=setInterval(async function(){
     var user=sessionStorage.getItem('sd_current_user');
-    if(!user||user==='admin'||!isLoggedIn()) return;
+    if(!user||user==='admin'||user==='micaela'||!isLoggedIn()) return;
     try{
       var st=await getServerTime();
       var ar=new Date(st.getTime()-(3*60*60*1000));
