@@ -948,6 +948,8 @@ function selectUser(userId){
     document.querySelectorAll('.pin-btn').forEach(function(b){b.parentElement.style.display='none';});
     // El administrador usa PIN o huella; no se solicita contraseña.
     document.getElementById('bioSection').style.display='none';
+    document.getElementById('adminBioBtn').style.display='none';
+    document.getElementById('adminSetupBio').style.display='block';
     initLoginBio();
     setTimeout(function(){
       var inp = document.getElementById('adminPinInput');
