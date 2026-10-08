@@ -851,7 +851,7 @@ async function checkAdminPass(){
     sessionStorage.setItem('sd_current_user','admin');
     sessionStorage.removeItem(ATTEMPTS_KEY);sessionStorage.removeItem(BLOCK_KEY);
     document.getElementById('adminPinInput').value='';
-    playJarvis();showApp();
+    showApp();
   }else{
     var a=parseInt(sessionStorage.getItem(ATTEMPTS_KEY)||'0')+1;
     sessionStorage.setItem(ATTEMPTS_KEY,a.toString());
@@ -1115,7 +1115,7 @@ async function doBiometric(){
     var credIdArr=Uint8Array.from(atob(credId),function(c){return c.charCodeAt(0);});
     await navigator.credentials.get({publicKey:{challenge:challenge,rpId:location.hostname,allowCredentials:[{id:credIdArr,type:'public-key'}],userVerification:'required',timeout:60000}});
     currentUser='admin';
-    playJarvis();sessionStorage.setItem(SESSION_KEY,'1');sessionStorage.setItem('sd_current_user','admin');showApp();
+    sessionStorage.setItem(SESSION_KEY,'1');sessionStorage.setItem('sd_current_user','admin');showApp();
   }catch(e){showMsg('Biometría no reconocida. Usá el PIN administrativo.','error');}
 }
 
@@ -1396,7 +1396,7 @@ function toggleBioDevice(){
   updateBioToggle();
 }
 
-window.addEventListener('load',function(){loadManagedUsers();renderUserDrawer();initJarvis();initResultAudios();initGreetAudios();if(isLoggedIn()){currentUser=sessionStorage.getItem('sd_current_user')||'admin';showApp();}else{document.getElementById('userSelectScreen').style.display='flex';}});
+window.addEventListener('load',function(){loadManagedUsers();renderUserDrawer();initResultAudios();if(isLoggedIn()){currentUser=sessionStorage.getItem('sd_current_user')||'admin';showApp();}else{document.getElementById('userSelectScreen').style.display='flex';}});
 if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('./sw.js');});}
 </script>
 
