@@ -1185,11 +1185,17 @@ function setDniScannerStatus(text,type){
 function extractDniFromPdf417(raw){
   var text=String(raw||'').replace(/[\r\n]+/g,' ').trim(),candidates=[];
   function add(value){if(value&&!candidates.includes(value))candidates.push(value);}
+  function addRun(run){
+    if(!run||/^(19|20)[0-9]{6}$/.test(run))return;
+    if(run.length<=8){add(run);return;}
+    // Algunos PDF417 incluyen dígitos de control junto al DNI.
+    add(run.slice(0,8));add(run.slice(-8));add(run.slice(0,7));add(run.slice(-7));
+  }
   // Formatos habituales del PDF417 argentino: IDARG12345678, ID12345678 o DNI: 12345678.
-  var m=text.match(/ID(?:ARG)?\s*[:#-]?\s*([0-9]{7,8})/i);if(m)add(m[1]);
-  m=text.match(/(?:DNI|DOCUMENTO|DOC|NUDNI)\s*[:#-]?\s*([0-9]{7,8})/i);if(m)add(m[1]);
-  var numbers=text.match(/\b[0-9]{7,8}\b/g)||[];
-  numbers.forEach(function(c){if(!/^(19|20)[0-9]{6}$/.test(c))add(c);});
+  var m=text.match(/ID(?:ARG)?\s*[:#-]?([0-9]{7,12})/i);if(m)addRun(m[1]);
+  m=text.match(/(?:DNI|DOCUMENTO|DOC|NUDNI)\s*[:#-]?([0-9]{7,12})/i);if(m)addRun(m[1]);
+  var numbers=text.match(/[0-9]{7,12}/g)||[];
+  numbers.forEach(addRun);
   // Si el payload trae varios números, elegir el que existe en la base cargada.
   if(localData&&localData.length){
     for(var i=0;i<candidates.length;i++){
@@ -1201,6 +1207,12 @@ function extractDniFromPdf417(raw){
     }
   }
   return candidates[0]||'';
+}
+function searchScannedDni(dni,attempt){
+  attempt=attempt||0;
+  if(localData&&localData.length){search();return;}
+  if(attempt<20){setDniScannerStatus('DNI detectado. Esperando la base de datos...','success');setTimeout(function(){searchScannedDni(dni,attempt+1);},500);return;}
+  setDniScannerStatus('DNI leído, pero la base todavía no está disponible. Verificá la conexión.','error');
 }
 function startDniScanner(){
   var modal=document.getElementById('dniScannerModal');
@@ -1229,7 +1241,7 @@ function startDniScanner(){
         document.getElementById('searchNombre').value='';
         setDniScannerStatus('DNI detectado: '+dni,'success');
         stopDniScanner();
-        search();
+        searchScannedDni(dni);
       } else if(error && !(error instanceof ZXing.NotFoundException)) {
         setDniScannerStatus('No se pudo leer el código. Alineá el reverso del DNI e intentá nuevamente.','error');
       } else {
