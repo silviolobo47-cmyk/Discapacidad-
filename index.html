@@ -1183,17 +1183,24 @@ function setDniScannerStatus(text,type){
   el.style.color=type==='error'?'#b91c1c':type==='success'?'#15803d':'#555';
 }
 function extractDniFromPdf417(raw){
-  var text=String(raw||'').replace(/[\r\n]+/g,' ').trim();
-  var labeled=text.match(/(?:DNI|DOCUMENTO|DOC)\s*[:#-]?\s*([0-9]{7,8})/i);
-  if(labeled)return labeled[1];
-  var candidates=text.match(/\b[0-9]{7,8}\b/g)||[];
-  // Prefer the first valid 7–8 digit field, ignoring dates commonly present in the payload.
-  for(var i=0;i<candidates.length;i++){
-    var c=candidates[i];
-    if(/^(19|20)[0-9]{6}$/.test(c))continue;
-    return c;
+  var text=String(raw||'').replace(/[\r\n]+/g,' ').trim(),candidates=[];
+  function add(value){if(value&&!candidates.includes(value))candidates.push(value);}
+  // Formatos habituales del PDF417 argentino: IDARG12345678, ID12345678 o DNI: 12345678.
+  var m=text.match(/ID(?:ARG)?\s*[:#-]?\s*([0-9]{7,8})/i);if(m)add(m[1]);
+  m=text.match(/(?:DNI|DOCUMENTO|DOC|NUDNI)\s*[:#-]?\s*([0-9]{7,8})/i);if(m)add(m[1]);
+  var numbers=text.match(/\b[0-9]{7,8}\b/g)||[];
+  numbers.forEach(function(c){if(!/^(19|20)[0-9]{6}$/.test(c))add(c);});
+  // Si el payload trae varios números, elegir el que existe en la base cargada.
+  if(localData&&localData.length){
+    for(var i=0;i<candidates.length;i++){
+      var wanted=candidates[i].replace(/[^0-9]/g,'');
+      for(var j=0;j<localData.length;j++){
+        var stored=String(localData[j].dni||'').replace(/[^0-9]/g,'');
+        if(stored===wanted||stored.indexOf(wanted)!==-1||wanted.indexOf(stored)!==-1)return wanted;
+      }
+    }
   }
-  return '';
+  return candidates[0]||'';
 }
 function startDniScanner(){
   var modal=document.getElementById('dniScannerModal');
