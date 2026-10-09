@@ -218,6 +218,7 @@ header p{font-size:12px;opacity:0.75;margin-top:2px;}
 .scanner-close{width:100%;padding:12px;background:#e8edf5;color:#1a3a6b;border:none;border-radius:10px;font-weight:700;cursor:pointer;}
 </style>
   <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js" defer></script>
 </head>
 <body>
 
@@ -381,8 +382,8 @@ header p{font-size:12px;opacity:0.75;margin-top:2px;}
 
 <div id="dniScannerModal" class="scanner-modal" role="dialog" aria-modal="true" aria-labelledby="dniScannerTitle">
   <div class="scanner-card">
-    <h2 id="dniScannerTitle">&#128247; Escanear código PDF417</h2>
-    <p>Enfocá el código del reverso del DNI dentro del recuadro. El procesamiento se realiza en este dispositivo; no se guarda ni se sube la imagen.</p>
+    <h2 id="dniScannerTitle">&#128247; Escanear DNI</h2>
+    <p>Podés mostrar el frente para leer el número impreso o el reverso para leer el código PDF417. El procesamiento se realiza en este dispositivo; no se guarda ni se sube la imagen.</p>
     <div class="scanner-video-wrap">
       <video id="dniScannerVideo" playsinline muted></video>
       <div class="scanner-frame"></div>
@@ -1175,6 +1176,7 @@ document.getElementById('searchNombre').addEventListener('keydown',function(e){i
 var dniScannerReader=null;
 var dniScannerControls=null;
 var dniScannerRunning=false;
+var dniOcrTimer=null,dniOcrBusy=false;
 
 function setDniScannerStatus(text,type){
   var el=document.getElementById('dniScannerStatus');
@@ -1214,6 +1216,19 @@ function searchScannedDni(dni,attempt){
   if(attempt<20){setDniScannerStatus('DNI detectado. Esperando la base de datos...','success');setTimeout(function(){searchScannedDni(dni,attempt+1);},500);return;}
   setDniScannerStatus('DNI leído, pero la base todavía no está disponible. Verificá la conexión.','error');
 }
+function startDniOcr(video){
+  if(!window.Tesseract)return;
+  var canvas=document.createElement('canvas'),ctx=canvas.getContext('2d',{willReadFrequently:true});
+  dniOcrTimer=setInterval(function(){
+    if(!dniScannerRunning||dniOcrBusy||!video.videoWidth)return;
+    dniOcrBusy=true;canvas.width=video.videoWidth;canvas.height=video.videoHeight;ctx.drawImage(video,0,0,canvas.width,canvas.height);
+    Tesseract.recognize(canvas,'eng',{tessedit_char_whitelist:'0123456789',logger:function(m){if(m.status==='recognizing text')setDniScannerStatus('Leyendo el frente del DNI...');}}).then(function(result){
+      if(!dniScannerRunning)return;
+      var dni=extractDniFromPdf417(result.data.text||'');
+      if(dni){document.getElementById('searchDni').value=dni;document.getElementById('searchNombre').value='';setDniScannerStatus('DNI detectado: '+dni,'success');stopDniScanner();searchScannedDni(dni);}
+    }).catch(function(){}).finally(function(){dniOcrBusy=false;});
+  },2200);
+}
 function startDniScanner(){
   var modal=document.getElementById('dniScannerModal');
   var video=document.getElementById('dniScannerVideo');
@@ -1221,11 +1236,13 @@ function startDniScanner(){
   if(!window.isSecureContext && location.hostname!=='localhost' && location.hostname!=='127.0.0.1'){
     alert('La cámara requiere HTTPS. Abrí la aplicación desde su enlace seguro.');return;
   }
-  if(!window.ZXing){
-    alert('No se pudo cargar el lector de códigos. Revisá la conexión e intentá nuevamente.');return;
+  if(!window.ZXing&&!window.Tesseract){
+    alert('No se pudo cargar el lector del DNI. Revisá la conexión e intentá nuevamente.');return;
   }
   modal.style.display='flex';
   setDniScannerStatus('Solicitando permiso para usar la cámara...');
+  startDniOcr(video);
+  if(!window.ZXing)return;
   var hints=new Map();
   hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS,[ZXing.BarcodeFormat.PDF_417]);
   hints.set(ZXing.DecodeHintType.TRY_HARDER,true);
@@ -1255,6 +1272,7 @@ function startDniScanner(){
 }
 function stopDniScanner(){
   dniScannerRunning=false;
+  if(dniOcrTimer){clearInterval(dniOcrTimer);dniOcrTimer=null;}
   try{if(dniScannerControls&&dniScannerControls.stop)dniScannerControls.stop();}catch(e){}
   try{if(dniScannerReader&&dniScannerReader.reset)dniScannerReader.reset();}catch(e){}
   dniScannerControls=null;dniScannerReader=null;
