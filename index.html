@@ -1080,11 +1080,16 @@ function initLoginBio(){
         if(adminSetup) adminSetup.style.display='block';
       }
     }
-    // Regular user bio elements
+    // El administrador usa únicamente el botón específico "Ingresar con huella".
+    // No mostrar también el bloque biométrico general, que produciría un botón duplicado.
     var bio = document.getElementById('bioSection');
     var setup = document.getElementById('setupBio');
-    if(bio) bio.style.display = registered ? 'block' : 'none';
-    if(setup) setup.style.display = registered ? 'none' : 'block';
+    if(currentUser==='admin'){
+      if(bio) bio.style.display='none';
+    }else{
+      if(bio) bio.style.display = registered ? 'block' : 'none';
+      if(setup) setup.style.display = registered ? 'none' : 'block';
+    }
   });
 }
 
