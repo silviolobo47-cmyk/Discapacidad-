@@ -216,9 +216,8 @@ header p{font-size:12px;opacity:0.75;margin-top:2px;}
 .scanner-frame{position:absolute;left:8%;right:8%;top:31%;height:38%;border:2px solid #43d17a;border-radius:8px;box-shadow:0 0 0 999px rgba(0,0,0,.18);pointer-events:none;}
 .scanner-status{text-align:center;min-height:20px;color:#555;font-size:13px;margin-bottom:10px;}
 .scanner-close{width:100%;padding:12px;background:#e8edf5;color:#1a3a6b;border:none;border-radius:10px;font-weight:700;cursor:pointer;}
-</style>
+  </style>
   <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js" defer></script>
-  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js" defer></script>
 </head>
 <body>
 
@@ -268,6 +267,7 @@ header p{font-size:12px;opacity:0.75;margin-top:2px;}
       <img src="icon-192.png" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none'">
     </div>
     <div style="font-size:24px;font-weight:700;color:white;margin-bottom:6px;text-align:center;">Sección Discapacidad</div>
+    <div style="font-size:11px;color:rgba(255,255,255,0.55);margin-bottom:6px;text-align:center;">Todos los derechos registrados - Silvio Lobo (R)</div>
     <div style="font-size:13px;color:rgba(255,255,255,0.4);margin-bottom:48px;text-align:center;">Base de datos de trámites de pases</div>
 
     <!-- Botón para abrir menú -->
@@ -378,6 +378,9 @@ header p{font-size:12px;opacity:0.75;margin-top:2px;}
     </div>
     <div id="resultsSection"></div>
   </div>
+  <footer style="text-align:center;padding:18px 16px 24px;color:rgba(255,255,255,.5);font-size:12px;">
+    App. Creada por Silvio Lobo (R)
+  </footer>
 </div>
 
 <div id="dniScannerModal" class="scanner-modal" role="dialog" aria-modal="true" aria-labelledby="dniScannerTitle">
@@ -1182,6 +1185,7 @@ var dniScannerReader=null;
 var dniScannerControls=null;
 var dniScannerRunning=false;
 var dniOcrTimer=null,dniOcrBusy=false;
+var dniOcrLoadPromise=null;
 
 function setDniScannerStatus(text,type){
   var el=document.getElementById('dniScannerStatus');
@@ -1221,12 +1225,28 @@ function searchScannedDni(dni,attempt){
   if(attempt<20){setDniScannerStatus('DNI detectado. Esperando la base de datos...','success');setTimeout(function(){searchScannedDni(dni,attempt+1);},500);return;}
   setDniScannerStatus('DNI leído, pero la base todavía no está disponible. Verificá la conexión.','error');
 }
+function loadDniOcr(){
+  if(window.Tesseract)return Promise.resolve(window.Tesseract);
+  if(dniOcrLoadPromise)return dniOcrLoadPromise;
+  dniOcrLoadPromise=new Promise(function(resolve,reject){
+    var script=document.createElement('script');
+    script.src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+    script.onload=function(){window.Tesseract?resolve(window.Tesseract):reject(new Error('OCR no disponible'));};
+    script.onerror=function(){reject(new Error('No se pudo cargar OCR'));};
+    document.head.appendChild(script);
+  });
+  return dniOcrLoadPromise;
+}
 function startDniOcr(video){
   if(!window.Tesseract)return;
   var canvas=document.createElement('canvas'),ctx=canvas.getContext('2d',{willReadFrequently:true});
   dniOcrTimer=setInterval(function(){
     if(!dniScannerRunning||dniOcrBusy||!video.videoWidth)return;
-    dniOcrBusy=true;canvas.width=video.videoWidth;canvas.height=video.videoHeight;ctx.drawImage(video,0,0,canvas.width,canvas.height);
+    dniOcrBusy=true;
+    // Procesar únicamente el área delimitada por el recuadro del DNI.
+    var sx=Math.round(video.videoWidth*.08),sy=Math.round(video.videoHeight*.31);
+    var sw=Math.round(video.videoWidth*.84),sh=Math.round(video.videoHeight*.38);
+    canvas.width=sw;canvas.height=sh;ctx.drawImage(video,sx,sy,sw,sh,0,0,sw,sh);
     Tesseract.recognize(canvas,'eng',{tessedit_char_whitelist:'0123456789',logger:function(m){if(m.status==='recognizing text')setDniScannerStatus('Leyendo el frente del DNI...');}}).then(function(result){
       if(!dniScannerRunning)return;
       var dni=extractDniFromPdf417(result.data.text||'');
@@ -1241,19 +1261,23 @@ function startDniScanner(){
   if(!window.isSecureContext && location.hostname!=='localhost' && location.hostname!=='127.0.0.1'){
     alert('La cámara requiere HTTPS. Abrí la aplicación desde su enlace seguro.');return;
   }
-  if(!window.ZXing&&!window.Tesseract){
-    alert('No se pudo cargar el lector del DNI. Revisá la conexión e intentá nuevamente.');return;
-  }
   modal.style.display='flex';
-  setDniScannerStatus('Solicitando permiso para usar la cámara...');
-  startDniOcr(video);
+  dniScannerRunning=true;
+  setDniScannerStatus('Preparando lector...');
+  setTimeout(function(){
+    if(dniScannerRunning)setDniScannerStatus('Cargando reconocimiento del frente...');
+  },250);
+  loadDniOcr().then(function(){
+    if(dniScannerRunning){startDniOcr(video);setDniScannerStatus('Cámara lista. Enfocá el DNI.');}
+  }).catch(function(){
+    if(dniScannerRunning)setDniScannerStatus('OCR no disponible; podés usar el PDF417 del reverso.','error');
+  });
   if(!window.ZXing)return;
   var hints=new Map();
   hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS,[ZXing.BarcodeFormat.PDF_417]);
   hints.set(ZXing.DecodeHintType.TRY_HARDER,true);
   try{
     dniScannerReader=new ZXing.BrowserMultiFormatReader(hints,500);
-    dniScannerRunning=true;
     dniScannerReader.decodeFromConstraints({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}}},video,function(result,error){
       if(!dniScannerRunning)return;
       if(result){
